@@ -1,0 +1,245 @@
+<!-- crPlayer overlay: all styles and scripts are inline, as in HtmlPlaygroundView. -->
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent!important;color:#f8fafc!important;font:14px system-ui,sans-serif}
+:root{--requested-padding:22px;--pad:min(var(--requested-padding),max(0px,calc((100vw - 144px)/2)),max(0px,calc((100vh - 96px)/2)))}
+button,input{font:inherit}button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border:1px solid #ffffff25;border-radius:10px;padding:7px;color:inherit;background:#ffffff10;cursor:pointer}button:hover{background:#ffffff25}button:focus-visible,input:focus-visible{outline:2px solid #67e8f9;outline-offset:2px}button:disabled,input:disabled{opacity:.4;cursor:default}svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.panel-zone{position:fixed;left:0;right:0;bottom:0;padding:var(--pad);--slide-x:0px;--slide-y:10px}
+.panel-zone[data-position=top]{top:0;bottom:auto;--slide-y:-10px}
+.panel-zone[data-position=left],.panel-zone[data-position=right]{top:50%;bottom:auto;right:auto;width:min(calc(144px + 2 * var(--pad)),100vw);transform:translateY(-50%);--slide-x:-10px;--slide-y:0px}
+.panel-zone[data-position=right]{right:0;left:auto;--slide-x:10px}
+.controls{max-height:calc(100vh - 2 * var(--pad));overflow:auto;scrollbar-width:thin;border:1px solid #ffffff25;border-radius:16px;padding:12px;background:linear-gradient(135deg,#111c2eed,#050a15ed);box-shadow:0 8px 30px #0006;opacity:0;transform:translate(var(--slide-x),var(--slide-y));pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.panel-zone.visible .controls{opacity:1;transform:translate(0,0);pointer-events:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;color:#cbd5e1}.top svg{width:16px;height:16px}.top{direction:ltr}#status{margin-left:auto}#open{width:28px;height:28px;padding:5px}.status-busy svg{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.transport{display:flex;flex-direction:column;gap:10px}.timeline{display:flex;align-items:center;gap:10px;direction:ltr;flex:1;min-width:140px}.time{font-variant-numeric:tabular-nums;white-space:nowrap;color:#cbd5e1;font-size:11px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;direction:ltr}#play{background:#67e8f9;color:#082f49}input[type=range]{margin:0;accent-color:#67e8f9;cursor:pointer;direction:ltr}#seek{flex:1;min-width:24px;width:0;height:24px}#volume{width:80px;height:24px}.volume-group{display:flex;align-items:center;gap:6px}.spacer{flex:1}#speed{position:relative}#speed svg{width:18px;height:18px;transform:translateY(-3px)}#speed-value{position:absolute;bottom:1px;font-size:9px;line-height:11px;font-variant-numeric:tabular-nums}.error{display:none;margin:0 0 10px;color:#fda4af;overflow-wrap:anywhere}.overlay-note{position:fixed;inset:45% 20% auto;text-align:center;background:#101827de;border-radius:12px;padding:16px}
+.panel-zone.side .transport{display:block}
+.panel-zone.side .row .timeline{grid-column:1;grid-row:1 / span 6;flex-direction:column-reverse;gap:8px;min-width:0;min-height:180px;align-self:stretch}
+.panel-zone.side #seek{writing-mode:vertical-lr;direction:rtl;width:24px;min-width:0;height:0;min-height:80px;flex:1;touch-action:none}
+.panel-zone.side .row{display:grid;grid-template-columns:minmax(44px,1fr) 36px;gap:6px 12px}
+.panel-zone.side .row>*{grid-column:2}
+.panel-zone.side .volume-group{flex-direction:column;gap:6px;padding:6px 0;border-block:1px solid #ffffff20}
+.panel-zone.side #volume{writing-mode:vertical-lr;direction:rtl;width:24px;height:72px;touch-action:none}
+.panel-zone.side .spacer{display:none}
+@media(max-width:400px){.row{gap:6px}#volume{width:56px}.controls{padding:10px}.timeline{gap:6px}}
+@media(max-height:480px){.panel-zone.side #volume{height:44px}.panel-zone.side .row{row-gap:4px}.panel-zone.side button{height:30px}.panel-zone.side .volume-group{padding:4px 0}.panel-zone.side .top{margin-bottom:6px}}
+@media(prefers-reduced-motion:reduce){.controls{transition:none;transform:none}.status-busy svg{animation:none}}
+</style>
+<div class="panel-zone visible" id="panel-zone" data-position="bottom">
+<div class="controls" id="controls" role="region" aria-label="Video controls">
+ <div class="top"><span id="filename"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H5v20h14V7l-5-5Zm0 0v5h5M9 11l6 4-6 4Z"/></svg></span><span id="status"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-8-8"/></svg></span><button id="open" title="Open" aria-label="Open"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2M3 7v12a2 2 0 0 0 2 2h14l3-11H7L5 19"/></svg></button></div>
+ <p class="error" id="error" role="alert"></p>
+ <div class="transport">
+
+ <div class="row"><button id="play" title="Play" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 5 11 7-11 7Z"/></svg></button> <button id="back" title="Back 10 seconds" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m11 5-8 7 8 7V5Zm10 0-8 7 8 7V5Z"/></svg></button> <button id="forward" title="Forward 10 seconds" aria-label="Forward 10 seconds"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 5 8 7-8 7V5Zm10 0 8 7-8 7V5Z"/></svg></button><div class="timeline"><span id="current" class="time">00:00</span><input id="seek" type="range" min="0" max="1" value="0" step="0.01" aria-label="Seek"><span id="duration" class="time">00:00</span></div><div class="volume-group"><button id="mute" title="Mute" aria-label="Mute"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button><input id="volume" type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume"></div><button id="speed" title="Speed" aria-label="Speed"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 19a10 10 0 1 1 16 0M12 13l5-6M5 12h1m12 0h1M12 3v2"/><circle cx="12" cy="15" r="2"/></svg><span id="speed-value" aria-hidden="true">1×</span></button> <button id="fullscreen" title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg></button></div>
+ </div>
+</div>
+</div>
+<script>
+(() => {
+const translations = {"en-US":{"play":"Play","pause":"Pause","replay":"Replay","mute":"Mute","unmute":"Unmute","fullscreen":"Fullscreen","exit":"Exit fullscreen","seek":"Seek","volume":"Volume","speed":"Speed","loading":"Loading…","buffering":"Buffering…","ready":"Ready","back":"Back 10 seconds","forward":"Forward 10 seconds","preview":"Open this file with crPlayer to control a video.","open":"Open"},"zh-CN":{"play":"播放","pause":"暂停","replay":"重播","mute":"静音","unmute":"取消静音","fullscreen":"全屏","exit":"退出全屏","seek":"进度","volume":"音量","speed":"倍速","loading":"正在加载…","buffering":"正在缓冲…","ready":"就绪","back":"后退 10 秒","forward":"前进 10 秒","preview":"请使用 crPlayer 打开此文件以控制视频。","open":"打开"},"zh-HK":{"play":"播放","pause":"暫停","replay":"重播","mute":"靜音","unmute":"取消靜音","fullscreen":"全螢幕","exit":"退出全螢幕","seek":"進度","volume":"音量","speed":"播放速度","loading":"載入中…","buffering":"緩衝中…","ready":"就緒","back":"後退 10 秒","forward":"前進 10 秒","preview":"請使用 crPlayer 開啟此檔案以控制影片。","open":"開啟"},"zh-TW":{"play":"播放","pause":"暫停","replay":"重播","mute":"靜音","unmute":"取消靜音","fullscreen":"全螢幕","exit":"結束全螢幕","seek":"進度","volume":"音量","speed":"播放速度","loading":"載入中…","buffering":"緩衝中…","ready":"就緒","back":"倒退 10 秒","forward":"快轉 10 秒","preview":"請使用 crPlayer 開啟此檔案以控制影片。","open":"開啟"},"ar":{"play":"تشغيل","pause":"إيقاف مؤقت","replay":"إعادة التشغيل","mute":"كتم الصوت","unmute":"إلغاء الكتم","fullscreen":"ملء الشاشة","exit":"إنهاء ملء الشاشة","seek":"الموضع","volume":"مستوى الصوت","speed":"السرعة","loading":"جارٍ التحميل…","buffering":"جارٍ التخزين المؤقت…","ready":"جاهز","back":"رجوع 10 ثوانٍ","forward":"تقديم 10 ثوانٍ","preview":"افتح هذا الملف باستخدام crPlayer للتحكم بالفيديو.","open":"فتح"},"fr":{"play":"Lire","pause":"Pause","replay":"Relire","mute":"Couper le son","unmute":"Rétablir le son","fullscreen":"Plein écran","exit":"Quitter le plein écran","seek":"Position","volume":"Volume","speed":"Vitesse","loading":"Chargement…","buffering":"Mise en mémoire tampon…","ready":"Prêt","back":"Reculer de 10 secondes","forward":"Avancer de 10 secondes","preview":"Ouvrez ce fichier avec crPlayer pour contrôler une vidéo.","open":"Ouvrir"},"ru":{"play":"Воспроизвести","pause":"Пауза","replay":"Повторить","mute":"Без звука","unmute":"Включить звук","fullscreen":"Полный экран","exit":"Выйти из полного экрана","seek":"Позиция","volume":"Громкость","speed":"Скорость","loading":"Загрузка…","buffering":"Буферизация…","ready":"Готово","back":"Назад на 10 секунд","forward":"Вперёд на 10 секунд","preview":"Откройте этот файл в crPlayer для управления видео.","open":"Открыть"},"es":{"play":"Reproducir","pause":"Pausa","replay":"Repetir","mute":"Silenciar","unmute":"Activar sonido","fullscreen":"Pantalla completa","exit":"Salir de pantalla completa","seek":"Posición","volume":"Volumen","speed":"Velocidad","loading":"Cargando…","buffering":"Almacenando en búfer…","ready":"Listo","back":"Retroceder 10 segundos","forward":"Avanzar 10 segundos","preview":"Abre este archivo con crPlayer para controlar un vídeo.","open":"Abrir"},"pt-BR":{"play":"Reproduzir","pause":"Pausar","replay":"Repetir","mute":"Silenciar","unmute":"Ativar som","fullscreen":"Tela cheia","exit":"Sair da tela cheia","seek":"Posição","volume":"Volume","speed":"Velocidade","loading":"Carregando…","buffering":"Armazenando em buffer…","ready":"Pronto","back":"Voltar 10 segundos","forward":"Avançar 10 segundos","preview":"Abra este arquivo com o crPlayer para controlar um vídeo.","open":"Abrir"},"pt-PT":{"play":"Reproduzir","pause":"Pausar","replay":"Repetir","mute":"Silenciar","unmute":"Ativar som","fullscreen":"Ecrã inteiro","exit":"Sair do ecrã inteiro","seek":"Posição","volume":"Volume","speed":"Velocidade","loading":"A carregar…","buffering":"A colocar em memória intermédia…","ready":"Pronto","back":"Recuar 10 segundos","forward":"Avançar 10 segundos","preview":"Abra este ficheiro com o crPlayer para controlar um vídeo.","open":"Abrir"},"fr-CA":{"play":"Lire","pause":"Pause","replay":"Relire","mute":"Couper le son","unmute":"Rétablir le son","fullscreen":"Plein écran","exit":"Quitter le plein écran","seek":"Position","volume":"Volume","speed":"Vitesse","loading":"Chargement…","buffering":"Mise en mémoire tampon…","ready":"Prêt","back":"Reculer de 10 secondes","forward":"Avancer de 10 secondes","preview":"Ouvrez ce fichier avec crPlayer pour contrôler une vidéo.","open":"Ouvrir"},"es-419":{"play":"Reproducir","pause":"Pausa","replay":"Repetir","mute":"Silenciar","unmute":"Activar sonido","fullscreen":"Pantalla completa","exit":"Salir de pantalla completa","seek":"Posición","volume":"Volumen","speed":"Velocidad","loading":"Cargando…","buffering":"Almacenando en búfer…","ready":"Listo","back":"Retroceder 10 segundos","forward":"Avanzar 10 segundos","preview":"Abre este archivo con crPlayer para controlar un vídeo.","open":"Abrir"}};
+const $ = id => document.getElementById(id);
+const player = window.crPlayer;
+const icons = {"play": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 5 11 7-11 7Z\"/></svg>", "pause": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M8 5v14M16 5v14\"/></svg>", "replay": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 10a8 8 0 1 1 1 8M4 4v6h6\"/></svg>", "back": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m11 5-8 7 8 7V5Zm10 0-8 7 8 7V5Z\"/></svg>", "forward": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m3 5 8 7-8 7V5Zm10 0 8 7-8 7V5Z\"/></svg>", "volume": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14\"/></svg>", "muted": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m11 4-6 5H2v6h3l6 5V4Zm5 5 6 6m0-6-6 6\"/></svg>", "fullscreen": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6\"/></svg>", "exit": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 9h6V3m6 0v6h6M9 21v-6H3m12 6v-6h6\"/></svg>", "speed": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 19a10 10 0 1 1 16 0M12 13l5-6M5 12h1m12 0h1M12 3v2\"/><circle cx=\"12\" cy=\"15\" r=\"2\"/></svg>", "file": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14 2H5v20h14V7l-5-5Zm0 0v5h5M9 11l6 4-6 4Z\"/></svg>", "loading": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 12a8 8 0 1 1-8-8\"/></svg>"};
+function setIcon(id, name) {
+  const element = $(id);
+  if (element.dataset.icon !== name) {
+    element.innerHTML = icons[name];
+    element.dataset.icon = name;
+  }
+}
+let labels = translations['en-US'], locale = '', scrubbing = false;
+let seekPointerActive = false, seekTimer = 0, seekTarget = null, lastSeekSent = null;
+function sendSeek() {
+  clearTimeout(seekTimer);
+  seekTimer = 0;
+  if (seekTarget !== null && player && player.state.ready && seekTarget !== lastSeekSent) {
+    lastSeekSent = seekTarget;
+    player.seek(seekTarget);
+  }
+}
+function finishSeek() {
+  if (!seekPointerActive && !scrubbing) return;
+  sendSeek();
+  seekPointerActive = scrubbing = false;
+  seekTarget = lastSeekSent = null;
+}
+
+const zone = $('panel-zone'), panel = $('controls');
+let hideTimer = 0, hovered = false, dragging = false, keyboard = false, hasError = false, preview = false, playing = false;
+// Hover/focus must not pin the panel forever while the video is playing.
+const keepVisible = () => preview || dragging || hasError ||
+  (!playing && (hovered || (keyboard && panel.contains(document.activeElement))));
+function showPanel() { clearTimeout(hideTimer); zone.classList.add('visible'); }
+function hideLater(delay=300) {
+  clearTimeout(hideTimer);
+  if (keepVisible()) return;
+  hideTimer = setTimeout(() => { if (!keepVisible()) zone.classList.remove('visible'); }, delay);
+}
+zone.addEventListener('pointerenter', event => {
+  if (event.pointerType !== 'touch') hovered = true;
+  showPanel();
+  hideLater(2500);
+});
+zone.addEventListener('pointerleave', () => { hovered = false; hideLater(); });
+zone.addEventListener('pointermove', event => {
+  if (event.pointerType !== 'touch') hovered = true;
+  if (!event.buttons) dragging = false;
+  showPanel();
+  hideLater(2500);
+});
+window.addEventListener('blur', () => {
+  finishSeek();
+  hovered = dragging = keyboard = scrubbing = false;
+  hideLater();
+});
+document.addEventListener('pointerdown', event => {
+  keyboard = false;
+  if (zone.contains(event.target)) {
+    showPanel();
+    if (event.target.matches('input[type=range]')) dragging = true;
+  }
+});
+document.addEventListener('pointerup', event => {
+  finishSeek();
+  dragging = false;
+  hideLater(hovered || event.pointerType === 'touch' ? 2500 : 300);
+});
+document.addEventListener('pointercancel', () => {
+  finishSeek();
+  dragging = false;
+  scrubbing = false;
+  hideLater();
+});
+document.addEventListener('keydown', () => {
+  keyboard = true;
+  if (panel.contains(document.activeElement)) {
+    showPanel();
+    hideLater(2500);
+  }
+}, true);
+panel.addEventListener('focusin', () => { showPanel(); hideLater(2500); });
+panel.addEventListener('focusout', () => setTimeout(() => hideLater(),0));
+let panelLayoutKey = '';
+function updatePanelLayout(state) {
+  const position = ['top','bottom','left','right'].includes(state.panelPosition) ? state.panelPosition : 'bottom';
+  const padding = Math.min(36,Math.max(0,Number.isFinite(state.panelPadding) ? state.panelPadding : 22));
+  const key = position + ':' + padding;
+  if (key === panelLayoutKey) return;
+  panelLayoutKey = key;
+  zone.dataset.position = position;
+  const vertical = position === 'left' || position === 'right';
+  zone.classList.toggle('side', vertical);
+  for (const id of ['seek','volume']) $(id).setAttribute('aria-orientation', vertical ? 'vertical' : 'horizontal');
+  document.documentElement.style.setProperty('--requested-padding',padding+'px');
+  hovered = false;
+  showPanel();
+  requestAnimationFrame(() => {
+    hovered = zone.matches(':hover');
+    hideLater(1400);
+  });
+}
+
+const time = seconds => {
+  seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const h = Math.floor(seconds / 3600), m = Math.floor(seconds / 60) % 60, s = seconds % 60;
+  return (h ? h + ':' : '') + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+};
+const label = (id, text) => { $(id).title = text; $(id).setAttribute('aria-label',text); };
+function render(state) {
+  const wasPlaying = playing;
+  playing = Boolean(state.ready && !state.paused && !state.ended);
+  const wasPreview = preview;
+  preview = state.panelPreview === true;
+  updatePanelLayout(state);
+  if (preview) showPanel();
+  else if (wasPreview) {
+    hovered = keyboard = dragging = false;
+    hideLater();
+  }
+  if (playing !== wasPlaying) hideLater(playing ? 2500 : 300);
+  const hadError = hasError;
+  hasError = Boolean(state.error);
+  if (hasError) showPanel();
+  else if (hadError) hideLater();
+  if (locale !== state.locale) {
+    locale = state.locale || 'en-US'; labels = translations[locale] || translations['en-US'];
+    document.documentElement.lang = locale;
+    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    label('open',labels.open);
+    label('seek',labels.seek);label('volume',labels.volume);label('speed',labels.speed);
+    label('back',labels.back);label('forward',labels.forward);
+  }
+  label('filename',state.fileName || 'crPlayer');
+  const busy = !state.error && (state.buffering || !state.ready);
+  label('status',state.error || (state.buffering ? labels.buffering : !state.ready ? labels.loading : state.paused ? labels.pause : labels.play));
+  setIcon('status',busy ? 'loading' : state.paused ? 'pause' : 'play');
+  $('status').classList.toggle('status-busy',busy);
+  setIcon('play',state.ended ? 'replay' : state.paused ? 'play' : 'pause');
+  label('play',state.ended ? labels.replay : state.paused ? labels.play : labels.pause);
+  setIcon('mute',state.muted ? 'muted' : 'volume');
+  label('mute',state.muted ? labels.unmute : labels.mute);
+  $('mute').setAttribute('aria-pressed',String(Boolean(state.muted)));
+  setIcon('fullscreen',state.fullscreen ? 'exit' : 'fullscreen');
+  label('fullscreen',state.fullscreen ? labels.exit : labels.fullscreen);
+  $('fullscreen').setAttribute('aria-pressed',String(Boolean(state.fullscreen)));
+  const rate = (state.playbackRate || 1) + '×';
+  $('speed-value').textContent = rate;
+  label('speed',labels.speed + ' · ' + rate);
+  $('current').textContent = time(scrubbing ? $('seek').value : state.currentTime);
+  $('duration').textContent = time(state.duration);
+  if (!scrubbing) { $('seek').max = String(state.duration || 1); $('seek').value = state.currentTime || 0; }
+  if (document.activeElement !== $('volume')) $('volume').value = state.volume;
+  for (const id of ['play','back','forward','seek']) $(id).disabled = !state.ready;
+  $('error').textContent = state.error || '';
+  $('error').style.display = state.error ? 'block' : 'none';
+}
+if (!player) {
+  const note=document.createElement('p');note.className='overlay-note';note.textContent=labels.preview;document.body.append(note);
+  document.querySelectorAll('button,input').forEach(element => element.disabled=true);
+  return;
+}
+$('open').onclick = () => player.open();
+$('play').onclick = () => player.toggle();
+$('back').onclick = () => player.seek(player.state.currentTime-10);
+$('forward').onclick = () => player.seek(player.state.currentTime+10);
+$('mute').onclick = () => player.setMuted(!player.state.muted);
+$('fullscreen').onclick = () => player.setFullscreen(!player.state.fullscreen);
+$('speed').onclick = () => { const speeds=[.25,.5,.75,1,1.25,1.5,2,3,4];player.setPlaybackRate(speeds[(speeds.indexOf(player.state.playbackRate)+1)%speeds.length]); };
+$('volume').oninput = event => player.setVolume(Number(event.target.value));
+$('seek').addEventListener('pointerdown', event => {
+  if ($('seek').disabled || event.button !== 0) return;
+  seekPointerActive = scrubbing = true;
+  seekTarget = lastSeekSent = null;
+  $('seek').setPointerCapture(event.pointerId);
+});
+$('seek').oninput = () => {
+  scrubbing = true;
+  seekTarget = Number($('seek').value);
+  $('current').textContent = time(seekTarget);
+  // Submit at most once every 120 ms; the native player coalesces pending seeks.
+  if (!seekTimer) seekTimer = setTimeout(sendSeek,120);
+};
+$('seek').onchange = () => {
+  seekTarget = Number($('seek').value);
+  if (seekPointerActive) sendSeek();
+  else finishSeek();
+};
+$('seek').addEventListener('lostpointercapture', finishSeek);
+$('seek').addEventListener('blur', finishSeek);
+const stateHasVideo = () => player.state.ready;
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && player.state.fullscreen) { event.preventDefault(); player.setFullscreen(false); }
+  if (event.key === 'F11') { event.preventDefault();player.setFullscreen(!player.state.fullscreen); }
+  if (event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
+  if (event.target.closest('input,textarea,select,[contenteditable]')) return;
+  if (stateHasVideo() && event.key.toLowerCase() === 'f') { event.preventDefault();player.setFullscreen(!player.state.fullscreen);return; }
+  if (event.key.toLowerCase() === 'q' && player.state.fullscreen) { event.preventDefault();player.setFullscreen(false);return; }
+  if (event.target.closest('button')) return;
+  if (event.code === 'Space') {event.preventDefault();player.toggle();}
+  if (event.key === 'ArrowLeft') {event.preventDefault();player.seek(player.state.currentTime-10);}
+  if (event.key === 'ArrowRight') {event.preventDefault();player.seek(player.state.currentTime+10);}
+});
+player.addEventListener('statechange', event => render(event.detail));
+render(player.state);
+hideLater(1400);
+})();
+</script>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>crPlayer</title>
+<style>
+:root { color-scheme:light; --bg:#f6f7fb; --fg:#202631; --button:#ffffff;
+  --line:#d9dfe9; --hover:#edf2fb; --glow:rgba(89,126,210,.09); }
+:root[data-dark="true"] { color-scheme:dark; --bg:#15171c; --fg:#eef1f7;
+  --button:#252a34; --line:#3d4554; --hover:#30394a; --glow:rgba(87,125,209,.12); }
+* { box-sizing:border-box; }
+html,body { margin:0; width:100%; height:100%; }
+body { background:radial-gradient(ellipse at 50% 46%,var(--glow),transparent 58%),var(--bg);
+  color:var(--fg); font:14px system-ui,sans-serif; }
+main { min-height:100%; display:flex; align-items:center; justify-content:center;
+  padding:32px; }
+.home { width:min(100%,520px); display:flex; align-items:center; flex-direction:column; gap:26px; }
+.logo { width:176px; height:176px; filter:drop-shadow(0 12px 22px rgba(0,0,0,.12)); }
+.logo svg { display:block; width:100%; height:100%; }
+button { appearance:none; display:flex; align-items:center; justify-content:center; gap:10px;
+  min-width:132px; min-height:44px; padding:10px 25px; border:1px solid var(--line);
+  border-radius:12px; background:var(--button); color:var(--fg); font:inherit;
+  font-weight:500; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.04);
+  transition:transform .15s; }
+button:hover { background:var(--hover); transform:translateY(-1px); }
+button:active { transform:translateY(0); }
+button:focus-visible { outline:3px solid #6b98f1; outline-offset:4px; }
+button svg { width:19px; height:19px; }
+#error { max-width:420px; text-align:center; color:var(--fg); line-height:1.6; }
+#error:empty { display:none; }
+.recent { width:100%; margin-top:8px; }
+.recent-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.recent-header h2 { font-size:14px; font-weight:600; margin:0; }
+.recent button { box-shadow:none; transform:none; transition:none; }
+.small-button { min-width:0; min-height:30px; padding:4px 9px; border-color:transparent;
+  background:transparent; font-size:12px; border-radius:7px; }
+.small-button:disabled { opacity:.4; cursor:default; }
+#recent-list { list-style:none; padding:4px; margin:0 -4px; max-height:250px; overflow:auto;
+  display:flex; flex-direction:column; gap:8px; }
+.recent-row { display:flex; align-items:center; gap:0; padding-inline-end:6px;
+  border:1px solid var(--line); border-radius:12px; background:var(--button); }
+.recent-row:hover, .recent-row:focus-within { background:var(--hover); }
+.recent-open { flex:1; min-width:0; min-height:56px; padding:12px 14px; border:0;
+  background:transparent; display:grid; grid-template-columns:minmax(0,1fr) auto;
+  align-items:center; gap:14px; text-align:start; border-radius:11px; }
+.recent-open:hover { background:transparent; }
+.recent-remove { flex:0 0 32px; min-width:32px; width:32px; min-height:32px; height:32px;
+  padding:7px; border:0; border-radius:8px; background:transparent; opacity:.6; }
+.recent-remove:hover, .recent-remove:focus-visible { background:var(--button); opacity:1; }
+.recent-remove svg { width:18px; height:18px; }
+@media(max-width:520px) { .recent-open { grid-template-columns:minmax(0,1fr); gap:4px; } }
+.recent-name { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.recent-time { font-size:11px; font-weight:400; opacity:.65; }
+#recent-empty { margin:16px 0 0; text-align:center; font-size:13px; opacity:.65; }
+@media(max-height:560px) { #recent-list { max-height:140px; } }
+@media(max-height:360px) { .logo { width:100px; height:100px; } .home { gap:14px; } }
+@media(prefers-reduced-motion:reduce) { button { transition:none; } }
+</style>
+</head>
+<body>
+<main><div class="home">
+<div class="logo" aria-label="crPlayer"><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">Player icon</title>
+<desc id="desc">Three seamless curved regions with rich red, gold and blue gradients surround a white play triangle.</desc>
+<defs>
+<clipPath id="disc"><circle cx="256" cy="256" r="213" /></clipPath>
+<linearGradient id="red" x1="94" y1="105" x2="280" y2="344" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FF8970" /><stop offset="0.5" stop-color="#F24B42" /><stop offset="1" stop-color="#C9253C" /></linearGradient>
+<linearGradient id="yellow" x1="322" y1="79" x2="430" y2="389" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFE88B" /><stop offset="0.5" stop-color="#FFCA28" /><stop offset="1" stop-color="#F49B0B" /></linearGradient>
+<linearGradient id="blue" x1="135" y1="309" x2="339" y2="466" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#85B7FF" /><stop offset="0.5" stop-color="#4285F4" /><stop offset="1" stop-color="#2558C9" /></linearGradient>
+</defs>
+<g clip-path="url(#disc)">
+<circle cx="256" cy="256" r="213" fill="url(#blue)" />
+<path d="M356.000 256.000 C413.000 256.000 386.000 367.000 418.635 418.635 A230 230 0 0 1 33.837 315.528 C94.871 313.083 177.500 391.966 206.000 342.603 L256 256Z" fill="url(#blue)" />
+<path d="M206.000 342.603 C177.500 391.966 94.871 313.083 33.837 315.528 A230 230 0 0 1 315.528 33.837 C287.129 87.917 177.500 120.034 206.000 169.397 L256 256Z" fill="url(#red)" />
+<path d="M206.000 169.397 C177.500 120.034 287.129 87.917 315.528 33.837 A230 230 0 0 1 418.635 418.635 C386.000 367.000 413.000 256.000 356.000 256.000 L256 256Z" fill="url(#yellow)" />
+<g fill="none" stroke="#FFFFFF" stroke-width="11.6" stroke-linecap="round" stroke-linejoin="round">
+<path d="M356.000 256.000 L206.000 342.603 L206.000 169.397Z" fill="#FFFFFF" />
+</g>
+</g>
+</svg></div>
+<button id="open" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v1M3 8h18l-3 10H5L3 8Z" stroke-linejoin="round"/></svg><span id="label">Open</span></button>
+<div id="error" role="status" aria-live="polite"></div>
+<section class="recent" aria-labelledby="recent-title">
+  <div class="recent-header"><h2 id="recent-title">Recent videos</h2><button id="clear-recent" class="small-button" type="button">Clear history</button></div>
+  <ul id="recent-list"></ul><p id="recent-empty">No recent videos</p>
+</section>
+</div></main>
+<script>
+(() => {
+  const labels = {"en-US": "Open", "zh-CN": "打开", "zh-HK": "開啟", "zh-TW": "開啟", "ar": "فتح", "fr": "Ouvrir", "fr-CA": "Ouvrir", "ru": "Открыть", "es": "Abrir", "es-419": "Abrir", "pt-BR": "Abrir", "pt-PT": "Abrir"};
+  const historyLabels = {"en-US": ["Recent videos", "Clear history", "Remove", "No recent videos"], "zh-CN": ["最近打开", "清空历史", "移除", "暂无打开记录"], "zh-HK": ["最近開啟", "清除記錄", "移除", "暫無開啟記錄"], "zh-TW": ["最近開啟", "清除紀錄", "移除", "尚無開啟紀錄"], "ar": ["مقاطع الفيديو الأخيرة", "مسح السجل", "إزالة", "لا توجد مقاطع فيديو حديثة"], "fr": ["Vidéos récentes", "Effacer l’historique", "Retirer", "Aucune vidéo récente"], "fr-CA": ["Vidéos récentes", "Effacer l’historique", "Retirer", "Aucune vidéo récente"], "ru": ["Недавние видео", "Очистить историю", "Удалить из списка", "Нет недавних видео"], "es": ["Vídeos recientes", "Borrar historial", "Quitar", "No hay vídeos recientes"], "es-419": ["Videos recientes", "Borrar historial", "Quitar", "No hay videos recientes"], "pt-BR": ["Vídeos recentes", "Limpar histórico", "Remover", "Nenhum vídeo recente"], "pt-PT": ["Vídeos recentes", "Limpar histórico", "Remover", "Sem vídeos recentes"]};
+  let historyKey = '';
+  const list = document.getElementById('recent-list');
+  const clear = document.getElementById('clear-recent');
+  function updateHistory(state, locale) {
+    const entries = Array.isArray(state.recent) ? state.recent.slice(0,20) : [];
+    const key = JSON.stringify([locale, entries]);
+    if (key === historyKey) return;
+    historyKey = key;
+    const text = historyLabels[locale] || historyLabels['en-US'];
+    document.getElementById('recent-title').textContent = text[0];
+    clear.textContent = text[1];
+    clear.disabled = !entries.length;
+    const empty = document.getElementById('recent-empty');
+    empty.textContent = text[3];
+    empty.hidden = Boolean(entries.length);
+    const focused = document.activeElement;
+    const focusedId = focused && focused.dataset ? focused.dataset.id : '';
+    const focusedAction = focused && focused.dataset ? focused.dataset.action : '';
+    const previousIndex = [...list.children].findIndex(row => row.contains(focused));
+    const scrollTop = list.scrollTop;
+    const fragment = document.createDocumentFragment();
+    for (const entry of entries) {
+      const row = document.createElement('li');
+      row.className = 'recent-row';
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'recent-open';
+      open.dataset.id = entry.id;
+      open.dataset.action = 'open';
+      open.title = entry.fileName;
+      const name = document.createElement('span');
+      name.className = 'recent-name';
+      name.textContent = entry.fileName;
+      const time = document.createElement('span');
+      time.className = 'recent-time';
+      const date = new Date(entry.openedAt);
+      time.textContent = Number.isFinite(date.getTime())
+        ? date.toLocaleString(locale, {dateStyle:'medium',timeStyle:'short'}) : '';
+      open.append(name,time);
+      open.addEventListener('click', () => player && player.openRecent(entry.id));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'recent-remove';
+      remove.dataset.id = entry.id;
+      remove.dataset.action = 'remove';
+      remove.title = text[2];
+      remove.setAttribute('aria-label', text[2] + ': ' + entry.fileName);
+      const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      icon.setAttribute('viewBox','0 0 24 24');
+      icon.setAttribute('fill','none');
+      icon.setAttribute('stroke','currentColor');
+      icon.setAttribute('stroke-width','1.8');
+      icon.setAttribute('stroke-linecap','round');
+      icon.setAttribute('aria-hidden','true');
+      icon.setAttribute('focusable','false');
+      const cross = document.createElementNS('http://www.w3.org/2000/svg','path');
+      cross.setAttribute('d','M7 7l10 10M17 7L7 17');
+      icon.append(cross);
+      remove.append(icon);
+      remove.addEventListener('click', () => player && player.removeRecent(entry.id));
+      row.append(open,remove);
+      fragment.append(row);
+    }
+    list.replaceChildren(fragment);
+    list.scrollTop = scrollTop;
+    if (previousIndex >= 0) {
+      const buttons = [...list.querySelectorAll('button')];
+      const same = buttons.find(item => item.dataset.id === focusedId && item.dataset.action === focusedAction);
+      const nextRow = list.children[Math.min(previousIndex,list.children.length-1)];
+      (same || (nextRow && nextRow.querySelector('button')) || button).focus({preventScroll:true});
+    } else if (focused === clear && clear.disabled) {
+      button.focus({preventScroll:true});
+    }
+  }
+  const button = document.getElementById('open');
+  const player = window.crPlayer;
+  function update(state) {
+    const locale = state.locale || 'en-US';
+    const root = document.documentElement;
+    const direction = locale === 'ar' ? 'rtl' : 'ltr';
+    const dark = String(Boolean(state.dark));
+    const label = document.getElementById('label');
+    const error = document.getElementById('error');
+    const text = labels[locale] || labels['en-US'];
+    const message = state.error || '';
+    if (root.lang !== locale) root.lang = locale;
+    if (root.dir !== direction) root.dir = direction;
+    if (root.dataset.dark !== dark) root.dataset.dark = dark;
+    if (label.textContent !== text) label.textContent = text;
+    if (error.textContent !== message) error.textContent = message;
+    updateHistory(state, locale);
+  }
+  button.addEventListener('click', () => player && player.open());
+  clear.addEventListener('click', () => player && player.clearRecent());
+  if (player) {
+    update(player.state);
+    player.addEventListener('statechange', event => update(event.detail));
+  }
+})();
+</script>
+</body>
+</html>
