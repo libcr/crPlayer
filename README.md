@@ -4,6 +4,20 @@ A free, high-performance desktop video player with an HTML5-customizable interfa
 
 Video is decoded and displayed by the native player. A transparent Blink WebView renders the HTML interface over the video, and a small JavaScript API connects the two. The HTML page does not need a `<video>` element.
 
+## Screenshots
+
+Home page with recent videos:
+
+![crPlayer home page with Open and recent videos](mac_20260917_170325.png)
+
+Video playback with the HTML control panel and decoder information:
+
+![crPlayer playing a video with playback controls and hardware decoder information](mac_20260917_170432.png)
+
+Interface settings for startup and playback pages, panel position, and padding:
+
+![crPlayer Interface settings](mac_20260917_170454.png)
+
 ## Getting started
 
 Extract the complete release package and keep its runtime files and directories together.
